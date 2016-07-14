@@ -118,7 +118,7 @@ namespace Microsoft.AspNetCore.Authentication.Tests.OpenIdConnect
             var server = CreateServer(GetProtocolMessageOptions());
             var transaction = await SendAsync(server, DefaultHost + Challenge);
             Assert.Equal(HttpStatusCode.Redirect, transaction.Response.StatusCode);
-            queryValues.CheckValues(transaction.Response.Headers.Location.AbsoluteUri, new string[] {});
+            queryValues.CheckValues(transaction.Response.Headers.Location.AbsoluteUri, new string[] { });
         }
 
         /// <summary>
@@ -285,10 +285,12 @@ namespace Microsoft.AspNetCore.Authentication.Tests.OpenIdConnect
                     options.ClientId = queryValues.ClientId;
                 else if (param.Equals(OpenIdConnectParameterNames.Resource))
                     options.Resource = queryValues.Resource;
-                else if (param.Equals(OpenIdConnectParameterNames.Scope)) {
+                else if (param.Equals(OpenIdConnectParameterNames.Scope))
+                {
                     options.Scope.Clear();
 
-                    foreach (var scope in queryValues.Scope.Split(' ')) {
+                    foreach (var scope in queryValues.Scope.Split(' '))
+                    {
                         options.Scope.Add(scope);
                     }
                 }
@@ -331,50 +333,86 @@ namespace Microsoft.AspNetCore.Authentication.Tests.OpenIdConnect
         public async Task SignOutWithDefaultRedirectUri()
         {
             var configuration = TestUtilities.DefaultOpenIdConnectConfiguration;
-            var server = CreateServer(new OpenIdConnectOptions
+            var options = new OpenIdConnectOptions
             {
                 Authority = DefaultAuthority,
                 ClientId = "Test Id",
                 Configuration = configuration
-            });
+            };
+            var server = CreateServer(options);
 
             var transaction = await SendAsync(server, DefaultHost + Signout);
             Assert.Equal(HttpStatusCode.Redirect, transaction.Response.StatusCode);
-            Assert.Equal(configuration.EndSessionEndpoint, transaction.Response.Headers.Location.AbsoluteUri);
+            Assert.True(transaction.Response.Headers.Location.AbsoluteUri.StartsWith(configuration.EndSessionEndpoint));
+
+            var query = transaction.Response.Headers.Location.Query.Substring(1).Split('&')
+                                   .Select(each => each.Split('='))
+                                   .ToDictionary(pair => pair[0], pair => pair[1]);
+
+            string redirectUri;
+            Assert.True(query.TryGetValue("post_logout_redirect_uri", out redirectUri));
+            Assert.Equal(UrlEncoder.Default.Encode("https://example.com" + options.SignedOutCallbackPath), redirectUri, true);
         }
 
         [Fact]
         public async Task SignOutWithCustomRedirectUri()
         {
             var configuration = TestUtilities.DefaultOpenIdConnectConfiguration;
-            var server = CreateServer(new OpenIdConnectOptions
+            var options = new OpenIdConnectOptions
             {
                 Authority = DefaultAuthority,
                 ClientId = "Test Id",
                 Configuration = configuration,
-                PostLogoutRedirectUri = "https://example.com/logout"
-            });
+                SignedOutCallbackPath = "/thelogout",
+                PostLogoutRedirectUri = "https://example.com/postlogout"
+            };
+            var server = CreateServer(options);
 
             var transaction = await SendAsync(server, DefaultHost + Signout);
             Assert.Equal(HttpStatusCode.Redirect, transaction.Response.StatusCode);
-            Assert.Contains(UrlEncoder.Default.Encode("https://example.com/logout"), transaction.Response.Headers.Location.AbsoluteUri);
+
+            var query = transaction.Response.Headers.Location.Query.Substring(1).Split('&')
+                                   .Select(each => each.Split('='))
+                                   .ToDictionary(pair => pair[0], pair => pair[1]);
+
+            string redirectUri;
+            Assert.True(query.TryGetValue("post_logout_redirect_uri", out redirectUri));
+            Assert.Equal(UrlEncoder.Default.Encode("https://example.com" + options.SignedOutCallbackPath), redirectUri, true);
+
+            string state;
+            Assert.True(query.TryGetValue("state", out state));
+            var properties = options.StateDataFormat.Unprotect(state);
+            Assert.Equal("https://example.com/postlogout", properties.RedirectUri, true);
         }
 
         [Fact]
         public async Task SignOutWith_Specific_RedirectUri_From_Authentication_Properites()
         {
             var configuration = TestUtilities.DefaultOpenIdConnectConfiguration;
-            var server = CreateServer(new OpenIdConnectOptions
+            var options = new OpenIdConnectOptions
             {
                 Authority = DefaultAuthority,
                 ClientId = "Test Id",
                 Configuration = configuration,
-                PostLogoutRedirectUri = "https://example.com/logout"
-            });
+                PostLogoutRedirectUri = "https://example.com/postlogout"
+            };
+            var server = CreateServer(options);
 
             var transaction = await SendAsync(server, "https://example.com/signout_with_specific_redirect_uri");
             Assert.Equal(HttpStatusCode.Redirect, transaction.Response.StatusCode);
-            Assert.Contains(UrlEncoder.Default.Encode("http://www.example.com/specific_redirect_uri"), transaction.Response.Headers.Location.AbsoluteUri);
+
+            var query = transaction.Response.Headers.Location.Query.Substring(1).Split('&')
+                                   .Select(each => each.Split('='))
+                                   .ToDictionary(pair => pair[0], pair => pair[1]);
+
+            string redirectUri;
+            Assert.True(query.TryGetValue("post_logout_redirect_uri", out redirectUri));
+            Assert.Equal(UrlEncoder.Default.Encode("https://example.com" + options.SignedOutCallbackPath), redirectUri, true);
+
+            string state;
+            Assert.True(query.TryGetValue("state", out state));
+            var properties = options.StateDataFormat.Unprotect(state);
+            Assert.Equal("http://www.example.com/specific_redirect_uri", properties.RedirectUri, true);
         }
 
         private static TestServer CreateServer(OpenIdConnectOptions options, Func<HttpContext, Task> handler = null, AuthenticationProperties properties = null)
