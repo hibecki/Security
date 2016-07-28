@@ -79,7 +79,7 @@ namespace OpenIdConnect.AzureAdSample
                 ClientSecret = clientSecret, // for code flow
                 Authority = authority,
                 ResponseType = OpenIdConnectResponseType.CodeIdToken,
-                PostLogoutRedirectUri = "/usersignout",
+                PostLogoutRedirectUri = "/signed-out",
                 // GetClaimsFromUserInfoEndpoint = true,
                 Events = new OpenIdConnectEvents()
                 {
@@ -126,7 +126,7 @@ namespace OpenIdConnect.AzureAdSample
                     await context.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                     await context.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
                 }
-                else if (context.Request.Path.Equals("/usersignout"))
+                else if (context.Request.Path.Equals("/signed-out"))
                 {
                     context.Response.ContentType = "text/html";
                     await context.Response.WriteAsync($"<html><body>You have been signed out.<br>{Environment.NewLine}");
