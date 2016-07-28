@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
@@ -78,6 +79,7 @@ namespace OpenIdConnect.AzureAdSample
                 ClientSecret = clientSecret, // for code flow
                 Authority = authority,
                 ResponseType = OpenIdConnectResponseType.CodeIdToken,
+                PostLogoutRedirectUri = "/usersignout",
                 // GetClaimsFromUserInfoEndpoint = true,
                 Events = new OpenIdConnectEvents()
                 {
@@ -122,12 +124,9 @@ namespace OpenIdConnect.AzureAdSample
                 else if (context.Request.Path.Equals("/signout-remote"))
                 {
                     await context.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    await context.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties
-                    {
-                        RedirectUri = "/signedout"
-                    });
+                    await context.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
                 }
-                else if (context.Request.Path.Equals("/signedout"))
+                else if (context.Request.Path.Equals("/usersignout"))
                 {
                     context.Response.ContentType = "text/html";
                     await context.Response.WriteAsync($"<html><body>You have been signed out.<br>{Environment.NewLine}");
