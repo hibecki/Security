@@ -185,11 +185,20 @@ namespace Microsoft.AspNetCore.Authentication.JwtBearer
 
         protected override async Task<bool> HandleUnauthorizedAsync(ChallengeContext context)
         {
-            var authResult = await HandleAuthenticateOnceAsync();
+            Exception failure = null;
+            try
+            {
+                var authResult = await HandleAuthenticateOnceAsync();
+                failure = authResult?.Failure;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
 
             var eventContext = new JwtBearerChallengeContext(Context, Options, new AuthenticationProperties(context.Properties))
             {
-                AuthenticateFailure = authResult?.Failure,
+                AuthenticateFailure = failure
             };
 
             // Avoid returning error=invalid_token if the error is not caused by an authentication failure (e.g missing token).
