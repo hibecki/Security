@@ -68,7 +68,7 @@ namespace Microsoft.AspNetCore.Authentication.JwtBearer
                 {
                     OnAuthenticationFailed = context =>
                     {
-                        context.Response.StatusCode = 500;
+                        context.Response.StatusCode = 401;
                         throw new Exception();
                     },
                     OnMessageReceived = context =>
@@ -91,8 +91,7 @@ namespace Microsoft.AspNetCore.Authentication.JwtBearer
                     }
                     catch (Exception)
                     {
-                        context.Response.StatusCode = 401;
-                        await context.Response.WriteAsync("It's ok. I got it.");
+                        Assert.False(true, "Exception shouldn't be thrown from middleware");
                     }
                 });
                 var transaction = await server.SendAsync("https://example.com/signIn");
