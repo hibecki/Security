@@ -233,12 +233,28 @@ namespace Microsoft.AspNetCore.Authentication
             }
         }
 
+        /// <summary>
+        /// Handle the authentication. If a task alreay exists to handle the authentication, return the task.
+        ///
+        /// Exception is thrown from the HandleAuthenticateAsync task will be handled and saved to AuthenticateResult.
+        /// </summary>
         protected Task<AuthenticateResult> HandleAuthenticateOnceAsync()
         {
             if (_authenticateTask == null)
             {
-                _authenticateTask = HandleAuthenticateAsync();
+                try
+                {
+                    _authenticateTask = HandleAuthenticateAsync().ContinueWith<AuthenticateResult>(
+                        task => task.IsFaulted ? AuthenticateResult.Fail(task.Exception) : task.Result
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // capture exception which is  thrown before the task is actually started
+                    _authenticateTask = Task.FromResult(AuthenticateResult.Fail(ex));
+                }
             }
+
             return _authenticateTask;
         }
 
